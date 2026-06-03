@@ -15,7 +15,9 @@ print(f"Using device: {DEVICE}")
 
 tf_train = transforms.Compose([  
     transforms.Resize((224,224)),
-    # transforms.RandomHorizontalFlip(p=0.5), # New(Haven't tested) TEST This first
+    transforms.RandomHorizontalFlip(p=0.5), 
+    transforms.RandomRotation(30),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
 ])
@@ -36,30 +38,27 @@ print(f"Train: {len(train_ds)}  Val: {len(val_ds)}")
 
 model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
 model.fc = nn.Linear(model.fc.in_features, len(train_ds.classes))
+
 model = model.to(DEVICE) 
 
 
 criterion = nn.CrossEntropyLoss() 
 optimizer = torch.optim.Adam(model.parameters(), lr=LR) 
-# Freeze all layers ATTEMPT FAILED
-# train_params = []
-# for name, layer in model.named_children():
-#     if name in ['conv1', 'bn1', 'layer1', 'layer2']:
-#         for param in layer.parameters():
-#             param.requires_grad = False
-#     if name not in ['conv1', 'bn1', 'layer1', 'layer2']:
-#         for param in layer.parameters():
-#             train_params.append(param)
-# optimizer = torch.optim.Adam(train_params, lr=LR) 
 
 for epoch in range(1, EPOCHS+1):
     model.train() 
+    train_correct = 0
+    train_total = 0
     for images, labels in train_loader:
         images, labels = images.to(DEVICE), labels.to(DEVICE) 
         optimizer.zero_grad() 
-        loss = criterion(model(images), labels) 
+        outputs = model(images)
+        loss = criterion(outputs, labels) 
         loss.backward() 
         optimizer.step() 
+        train_preds = outputs.argmax(dim=1) 
+        train_correct += train_preds.eq(labels).sum().item() 
+        train_total   += labels.size(0) 
     model.eval()
     correct = 0
     total = 0
@@ -69,7 +68,8 @@ for epoch in range(1, EPOCHS+1):
             preds = model(images).argmax(dim=1) 
             correct += preds.eq(labels).sum().item() 
             total   += labels.size(0) 
-    print(f"Epoch {epoch}/{EPOCHS}  val_acc={100*correct/total:.1f}%") 
+    print(f"Epoch {epoch}/{EPOCHS}  val_acc={100*correct/total:.1f}% train_acc={100*train_correct/train_total:.1f}") 
+
 
 torch.save({"state_dict": model.state_dict(), "classes": train_ds.classes}, "fer_model.pth")
 print("Saved → fer_model.pth")
