@@ -1,0 +1,5 @@
+TestImages/
+train/
+TrainingImages/
+venv/
+__pycache__/
