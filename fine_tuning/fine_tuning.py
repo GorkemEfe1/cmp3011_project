@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 from torchvision import transforms, datasets, models
 from torch.utils.data import DataLoader
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 
 DATA_DIR = "./images"
@@ -45,10 +47,14 @@ model = model.to(DEVICE)
 criterion = nn.CrossEntropyLoss() 
 optimizer = torch.optim.Adam(model.parameters(), lr=LR) 
 
+
 for epoch in range(1, EPOCHS+1):
     model.train() 
     train_correct = 0
     train_total = 0
+    prediction = []
+    truth = []
+
     for images, labels in train_loader:
         images, labels = images.to(DEVICE), labels.to(DEVICE) 
         optimizer.zero_grad() 
@@ -68,8 +74,14 @@ for epoch in range(1, EPOCHS+1):
             preds = model(images).argmax(dim=1) 
             correct += preds.eq(labels).sum().item() 
             total   += labels.size(0) 
+            prediction.extend(preds.tolist())
+            truth.extend(labels.tolist())
     print(f"Epoch {epoch}/{EPOCHS}  val_acc={100*correct/total:.1f}% train_acc={100*train_correct/train_total:.1f}") 
 
+a = confusion_matrix(truth, prediction)
+disp = ConfusionMatrixDisplay(a)
+disp.plot()
+plt.show()
 
 torch.save({"state_dict": model.state_dict(), "classes": train_ds.classes}, "fer_model.pth")
 print("Saved → fer_model.pth")
