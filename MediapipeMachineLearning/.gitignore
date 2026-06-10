@@ -1,0 +1,5 @@
+TestImages/
+train/
+__pycache__/
+images/
+*.pth
